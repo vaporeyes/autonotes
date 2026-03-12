@@ -1,32 +1,62 @@
-version: '3.8'
+# ABOUTME: Docker Compose stack for the Autonotes AI Orchestrator.
+# ABOUTME: Runs FastAPI api, Celery worker, Redis broker, and PostgreSQL.
 
 services:
-  # The FastAPI Agent Orchestrator
   api:
     build: .
-    container_name: obsidian-agent-api
+    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
     env_file: .env
     depends_on:
-      - redis
-    extra_hosts:
-      - "host.docker.internal:host-gateway" # Allows connecting to Obsidian on the host
-
-  # Background Worker for heavy vault operations
-  worker:
-    build: .
-    container_name: obsidian-agent-worker
-    command: celery -A app.worker.celery_app worker --loglevel=info
-    env_file: .env
-    depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/app
 
-  # Message Broker
+  worker:
+    build: .
+    command: uv run celery -A app.celery_app worker --loglevel=info --concurrency=4
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/app
+
   redis:
     image: redis:7-alpine
-    container_name: obsidian-agent-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-autonotes}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-autonotes}
+      POSTGRES_DB: ${POSTGRES_DB:-autonotes}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autonotes}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:
