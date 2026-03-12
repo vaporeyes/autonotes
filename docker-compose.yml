@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # The FastAPI Agent Orchestrator
+  api:
+    build: .
+    container_name: obsidian-agent-api
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Allows connecting to Obsidian on the host
+
+  # Background Worker for heavy vault operations
+  worker:
+    build: .
+    container_name: obsidian-agent-worker
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    env_file: .env
+    depends_on:
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: obsidian-agent-redis
+    ports:
+      - "6379:6379"
