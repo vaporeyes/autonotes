@@ -11,125 +11,102 @@ Create Date: 2026-03-12 04:46:45.603274
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision: str = "b51d378912c0"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-job_type_enum = sa.Enum(
-    "vault_scan", "vault_cleanup", "ai_analysis", "ai_chat", "manual_patch", "batch_patch",
-    name="job_type_enum",
-)
-job_status_enum = sa.Enum("pending", "running", "completed", "failed", "cancelled", name="job_status_enum")
-operation_type_enum = sa.Enum(
-    "add_tag", "remove_tag", "add_backlink", "remove_backlink",
-    "update_frontmatter_key", "append_body", "prepend_body",
-    name="operation_type_enum",
-)
-risk_level_enum = sa.Enum("low", "high", name="risk_level_enum")
-patch_status_enum = sa.Enum(
-    "pending_approval", "approved", "applied", "skipped", "failed", name="patch_status_enum"
-)
-log_status_enum = sa.Enum("success", "failure", "no_op", name="log_status_enum")
-
 
 def upgrade() -> None:
-    job_type_enum.create(op.get_bind(), checkfirst=True)
-    job_status_enum.create(op.get_bind(), checkfirst=True)
-    operation_type_enum.create(op.get_bind(), checkfirst=True)
-    risk_level_enum.create(op.get_bind(), checkfirst=True)
-    patch_status_enum.create(op.get_bind(), checkfirst=True)
-    log_status_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("CREATE TYPE job_type_enum AS ENUM ('vault_scan', 'vault_cleanup', 'ai_analysis', 'ai_chat', 'manual_patch', 'batch_patch')")
+    op.execute("CREATE TYPE job_status_enum AS ENUM ('pending', 'running', 'completed', 'failed', 'cancelled')")
+    op.execute("CREATE TYPE operation_type_enum AS ENUM ('add_tag', 'remove_tag', 'add_backlink', 'remove_backlink', 'update_frontmatter_key', 'append_body', 'prepend_body')")
+    op.execute("CREATE TYPE risk_level_enum AS ENUM ('low', 'high')")
+    op.execute("CREATE TYPE patch_status_enum AS ENUM ('pending_approval', 'approved', 'applied', 'skipped', 'failed')")
+    op.execute("CREATE TYPE log_status_enum AS ENUM ('success', 'failure', 'no_op')")
 
-    op.create_table(
-        "jobs",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("celery_task_id", sa.String(255)),
-        sa.Column("job_type", job_type_enum, nullable=False),
-        sa.Column("target_path", sa.String(1024)),
-        sa.Column("parameters", postgresql.JSON),
-        sa.Column("idempotency_key", sa.String(64)),
-        sa.Column("status", job_status_enum, nullable=False, server_default="pending"),
-        sa.Column("progress_current", sa.Integer),
-        sa.Column("progress_total", sa.Integer),
-        sa.Column("result", postgresql.JSON),
-        sa.Column("error_message", sa.Text),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("started_at", sa.DateTime(timezone=True)),
-        sa.Column("completed_at", sa.DateTime(timezone=True)),
-    )
-    op.create_index("ix_job_status", "jobs", ["status"])
-    op.create_index("ix_job_created_at", "jobs", ["created_at"])
-    op.create_index(
-        "ix_job_idempotency_active",
-        "jobs",
-        ["idempotency_key"],
-        unique=True,
-        postgresql_where=sa.text("status IN ('pending', 'running')"),
-    )
+    op.execute("""
+        CREATE TABLE jobs (
+            id UUID PRIMARY KEY,
+            celery_task_id VARCHAR(255),
+            job_type job_type_enum NOT NULL,
+            target_path VARCHAR(1024),
+            parameters JSONB,
+            idempotency_key VARCHAR(64),
+            status job_status_enum NOT NULL DEFAULT 'pending',
+            progress_current INTEGER,
+            progress_total INTEGER,
+            result JSONB,
+            error_message TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            started_at TIMESTAMPTZ,
+            completed_at TIMESTAMPTZ
+        )
+    """)
+    op.execute("CREATE INDEX ix_job_status ON jobs (status)")
+    op.execute("CREATE INDEX ix_job_created_at ON jobs (created_at)")
+    op.execute("CREATE UNIQUE INDEX ix_job_idempotency_active ON jobs (idempotency_key) WHERE status IN ('pending', 'running')")
 
-    op.create_table(
-        "patch_operations",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=False),
-        sa.Column("target_path", sa.String(1024), nullable=False),
-        sa.Column("operation_type", operation_type_enum, nullable=False),
-        sa.Column("payload", postgresql.JSON, nullable=False),
-        sa.Column("idempotency_key", sa.String(64), nullable=False),
-        sa.Column("risk_level", risk_level_enum, nullable=False),
-        sa.Column("status", patch_status_enum, nullable=False, server_default="pending_approval"),
-        sa.Column("before_hash", sa.String(71)),
-        sa.Column("after_hash", sa.String(71)),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("applied_at", sa.DateTime(timezone=True)),
-    )
-    op.create_index("ix_patch_idempotency", "patch_operations", ["idempotency_key"], unique=True)
+    op.execute("""
+        CREATE TABLE patch_operations (
+            id UUID PRIMARY KEY,
+            job_id UUID NOT NULL REFERENCES jobs(id),
+            target_path VARCHAR(1024) NOT NULL,
+            operation_type operation_type_enum NOT NULL,
+            payload JSONB NOT NULL,
+            idempotency_key VARCHAR(64) NOT NULL,
+            risk_level risk_level_enum NOT NULL,
+            status patch_status_enum NOT NULL DEFAULT 'pending_approval',
+            before_hash VARCHAR(71),
+            after_hash VARCHAR(71),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            applied_at TIMESTAMPTZ
+        )
+    """)
+    op.execute("CREATE UNIQUE INDEX ix_patch_idempotency ON patch_operations (idempotency_key)")
 
-    op.create_table(
-        "operation_logs",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id")),
-        sa.Column(
-            "patch_operation_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("patch_operations.id")
-        ),
-        sa.Column("operation_name", sa.String(255), nullable=False),
-        sa.Column("target_path", sa.String(1024), nullable=False),
-        sa.Column("before_hash", sa.String(71)),
-        sa.Column("after_hash", sa.String(71)),
-        sa.Column("status", log_status_enum, nullable=False),
-        sa.Column("error_message", sa.Text),
-        sa.Column("llm_notes_sent", postgresql.ARRAY(sa.String)),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-    )
-    op.create_index("ix_oplog_target_path", "operation_logs", ["target_path"])
-    op.create_index("ix_oplog_created_at", "operation_logs", ["created_at"])
+    op.execute("""
+        CREATE TABLE operation_logs (
+            id UUID PRIMARY KEY,
+            job_id UUID REFERENCES jobs(id),
+            patch_operation_id UUID REFERENCES patch_operations(id),
+            operation_name VARCHAR(255) NOT NULL,
+            target_path VARCHAR(1024) NOT NULL,
+            before_hash VARCHAR(71),
+            after_hash VARCHAR(71),
+            status log_status_enum NOT NULL,
+            error_message TEXT,
+            llm_notes_sent TEXT[],
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """)
+    op.execute("CREATE INDEX ix_oplog_target_path ON operation_logs (target_path)")
+    op.execute("CREATE INDEX ix_oplog_created_at ON operation_logs (created_at)")
 
-    op.create_table(
-        "llm_interactions",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=False),
-        sa.Column("provider", sa.String(50), nullable=False),
-        sa.Column("model", sa.String(100), nullable=False),
-        sa.Column("notes_sent", postgresql.ARRAY(sa.String)),
-        sa.Column("prompt_tokens", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("completion_tokens", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-    )
-    op.create_index("ix_llm_job_id", "llm_interactions", ["job_id"])
+    op.execute("""
+        CREATE TABLE llm_interactions (
+            id UUID PRIMARY KEY,
+            job_id UUID NOT NULL REFERENCES jobs(id),
+            provider VARCHAR(50) NOT NULL,
+            model VARCHAR(100) NOT NULL,
+            notes_sent TEXT[],
+            prompt_tokens INTEGER NOT NULL DEFAULT 0,
+            completion_tokens INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """)
+    op.execute("CREATE INDEX ix_llm_job_id ON llm_interactions (job_id)")
 
 
 def downgrade() -> None:
-    op.drop_table("llm_interactions")
-    op.drop_table("operation_logs")
-    op.drop_table("patch_operations")
-    op.drop_table("jobs")
-
-    log_status_enum.drop(op.get_bind(), checkfirst=True)
-    patch_status_enum.drop(op.get_bind(), checkfirst=True)
-    risk_level_enum.drop(op.get_bind(), checkfirst=True)
-    operation_type_enum.drop(op.get_bind(), checkfirst=True)
-    job_status_enum.drop(op.get_bind(), checkfirst=True)
-    job_type_enum.drop(op.get_bind(), checkfirst=True)
+    op.execute("DROP TABLE IF EXISTS llm_interactions")
+    op.execute("DROP TABLE IF EXISTS operation_logs")
+    op.execute("DROP TABLE IF EXISTS patch_operations")
+    op.execute("DROP TABLE IF EXISTS jobs")
+    op.execute("DROP TYPE IF EXISTS log_status_enum")
+    op.execute("DROP TYPE IF EXISTS patch_status_enum")
+    op.execute("DROP TYPE IF EXISTS risk_level_enum")
+    op.execute("DROP TYPE IF EXISTS operation_type_enum")
+    op.execute("DROP TYPE IF EXISTS job_status_enum")
+    op.execute("DROP TYPE IF EXISTS job_type_enum")

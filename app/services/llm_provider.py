@@ -1,4 +1,4 @@
-# ABOUTME: Abstract LLM provider interface with Claude and OpenAI implementations.
+# ABOUTME: Abstract LLM provider interface with Claude, OpenAI, and OpenRouter implementations.
 # ABOUTME: Factory function selects provider based on LLM_PROVIDER config setting.
 
 from abc import ABC, abstractmethod
@@ -28,7 +28,7 @@ class LLMProvider(ABC):
 class ClaudeProvider(LLMProvider):
     def __init__(self):
         self._client = anthropic.AsyncAnthropic(api_key=settings.llm_api_key)
-        self._model = "claude-sonnet-4-20250514"
+        self._model = settings.llm_model or "claude-sonnet-4-20250514"
 
     async def complete(self, system_prompt: str, user_message: str) -> tuple[str, int, int]:
         response = await self._client.messages.create(
@@ -49,10 +49,16 @@ class ClaudeProvider(LLMProvider):
         return self._model
 
 
-class OpenAIProvider(LLMProvider):
-    def __init__(self):
-        self._client = openai.AsyncOpenAI(api_key=settings.llm_api_key)
-        self._model = "gpt-4o"
+class OpenAICompatibleProvider(LLMProvider):
+    """Works with OpenAI, OpenRouter, and any OpenAI-compatible API."""
+
+    def __init__(self, provider: str, default_model: str, base_url: str | None = None):
+        self._provider = provider
+        self._model = settings.llm_model or default_model
+        self._client = openai.AsyncOpenAI(
+            api_key=settings.llm_api_key,
+            base_url=base_url or settings.llm_base_url or None,
+        )
 
     async def complete(self, system_prompt: str, user_message: str) -> tuple[str, int, int]:
         response = await self._client.chat.completions.create(
@@ -69,7 +75,7 @@ class OpenAIProvider(LLMProvider):
 
     @property
     def provider_name(self) -> str:
-        return "openai"
+        return self._provider
 
     @property
     def model_name(self) -> str:
@@ -77,8 +83,15 @@ class OpenAIProvider(LLMProvider):
 
 
 def get_llm_provider() -> LLMProvider:
-    if settings.llm_provider == "claude":
+    provider = settings.llm_provider
+    if provider == "claude":
         return ClaudeProvider()
-    elif settings.llm_provider == "openai":
-        return OpenAIProvider()
-    raise ValueError(f"Unknown LLM provider: {settings.llm_provider}")
+    elif provider == "openai":
+        return OpenAICompatibleProvider("openai", "gpt-4o")
+    elif provider == "openrouter":
+        return OpenAICompatibleProvider(
+            "openrouter",
+            "anthropic/claude-sonnet-4",
+            base_url="https://openrouter.ai/api/v1",
+        )
+    raise ValueError(f"Unknown LLM provider: {provider}")

@@ -14,32 +14,10 @@ from app.services.obsidian_client import obsidian_client
 router = APIRouter(tags=["Notes"])
 
 
-@router.get("/notes/{path:path}", response_model=Note)
-async def get_note(path: str):
-    try:
-        raw = await obsidian_client.get_note_raw(path)
-    except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == 404:
-            raise not_found(f"Note not found: {path}", target_path=path)
-        raise obsidian_error(f"Obsidian API error: {exc.response.status_code}", target_path=path)
-    except httpx.ConnectError:
-        raise obsidian_unreachable()
-
-    try:
-        json_data = await obsidian_client.get_note(path)
-        stat = json_data.get("stat", {})
-        mtime = stat.get("mtime")
-        last_modified = datetime.fromtimestamp(mtime / 1000, tz=timezone.utc) if mtime else None
-    except Exception:
-        last_modified = None
-
-    return parse_note(path, raw, last_modified)
-
-
 @router.get("/notes/folder/{path:path}", response_model=FolderResponse)
 async def get_folder(path: str, recursive: bool = False):
     try:
-        files = await obsidian_client.list_folder(path)
+        files = await obsidian_client.list_folder(path, recursive=recursive)
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == 404:
             raise not_found(f"Folder not found: {path}", target_path=path)
@@ -60,3 +38,25 @@ async def get_folder(path: str, recursive: bool = False):
 
     folder_display = path if path.endswith("/") else path + "/"
     return FolderResponse(folder=folder_display, note_count=len(notes), notes=notes)
+
+
+@router.get("/notes/{path:path}", response_model=Note)
+async def get_note(path: str):
+    try:
+        raw = await obsidian_client.get_note_raw(path)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            raise not_found(f"Note not found: {path}", target_path=path)
+        raise obsidian_error(f"Obsidian API error: {exc.response.status_code}", target_path=path)
+    except httpx.ConnectError:
+        raise obsidian_unreachable()
+
+    try:
+        json_data = await obsidian_client.get_note(path)
+        stat = json_data.get("stat", {})
+        mtime = stat.get("mtime")
+        last_modified = datetime.fromtimestamp(mtime / 1000, tz=timezone.utc) if mtime else None
+    except Exception:
+        last_modified = None
+
+    return parse_note(path, raw, last_modified)

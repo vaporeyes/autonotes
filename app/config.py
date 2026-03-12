@@ -5,10 +5,10 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
     # Obsidian Local REST API
-    obsidian_api_url: str = "https://host.docker.internal:27124"
+    obsidian_api_url: str = "http://host.docker.internal:27123"
     obsidian_api_key: str = ""
 
     # PostgreSQL
@@ -18,9 +18,11 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     celery_result_backend: str = "redis://redis:6379/1"
 
-    # LLM provider
+    # LLM provider (claude, openai, or openrouter)
     llm_provider: str = "claude"
     llm_api_key: str = ""
+    llm_model: str = ""
+    llm_base_url: str = ""
 
     # Operation log retention
     log_retention_days: int = 90

@@ -5,13 +5,13 @@ import asyncio
 from datetime import datetime, timezone
 
 from app.celery_app import celery
-from app.db.session import async_session
+from app.db.session import task_session
 from app.models.job import Job, JobStatus
 from app.services import ai_service
 
 
 async def _run_analysis(job_id: str, target_path: str, analysis_type: str):
-    async with async_session() as session:
+    async with task_session() as session:
         job = await session.get(Job, job_id)
         if not job:
             return
@@ -20,8 +20,8 @@ async def _run_analysis(job_id: str, target_path: str, analysis_type: str):
         await session.commit()
 
     try:
-        async with async_session() as session:
-            result = await ai_service.analyze(target_path, analysis_type, session)
+        async with task_session() as session:
+            result = await ai_service.analyze(target_path, analysis_type, session, job_id=job_id)
             job = await session.get(Job, job_id)
             if job:
                 job.status = JobStatus.completed
@@ -29,7 +29,7 @@ async def _run_analysis(job_id: str, target_path: str, analysis_type: str):
                 job.result = result
             await session.commit()
     except Exception as exc:
-        async with async_session() as session:
+        async with task_session() as session:
             job = await session.get(Job, job_id)
             if job:
                 job.status = JobStatus.failed

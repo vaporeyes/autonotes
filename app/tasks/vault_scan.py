@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.celery_app import celery
-from app.db.session import async_session
+from app.db.session import task_session
 from app.models.job import Job, JobStatus
 from app.services.note_parser import parse_note
 from app.services.obsidian_client import ObsidianClient
@@ -20,7 +20,7 @@ async def _run_scan(job_id: str, target_path: str, parameters: dict | None):
         files = await client.list_folder(target_path)
         md_files = [f for f in files if f.endswith(".md")]
 
-        async with async_session() as session:
+        async with task_session() as session:
             job = await session.get(Job, job_id)
             if not job:
                 return
@@ -48,7 +48,7 @@ async def _run_scan(job_id: str, target_path: str, parameters: dict | None):
                     "path": file_path,
                 })
 
-            async with async_session() as session:
+            async with task_session() as session:
                 job = await session.get(Job, job_id)
                 if job:
                     job.progress_current = i + 1
@@ -81,7 +81,7 @@ async def _run_scan(job_id: str, target_path: str, parameters: dict | None):
 
         scan_results["notes_scanned"] = len(all_notes)
 
-        async with async_session() as session:
+        async with task_session() as session:
             job = await session.get(Job, job_id)
             if job:
                 job.status = JobStatus.completed
@@ -90,7 +90,7 @@ async def _run_scan(job_id: str, target_path: str, parameters: dict | None):
                 await session.commit()
 
     except Exception as exc:
-        async with async_session() as session:
+        async with task_session() as session:
             job = await session.get(Job, job_id)
             if job:
                 job.status = JobStatus.failed

@@ -10,6 +10,12 @@ celery = Celery(
     "autonotes",
     broker=settings.redis_url,
     backend=settings.celery_result_backend,
+    include=[
+        "app.tasks.vault_scan",
+        "app.tasks.vault_cleanup",
+        "app.tasks.ai_analysis",
+        "app.tasks.log_purge",
+    ],
 )
 
 celery.conf.update(
@@ -20,8 +26,6 @@ celery.conf.update(
     enable_utc=True,
     task_track_started=True,
 )
-
-celery.autodiscover_tasks(["app.tasks"])
 
 celery.conf.beat_schedule = {
     "purge-old-logs": {

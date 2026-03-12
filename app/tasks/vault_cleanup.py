@@ -5,7 +5,7 @@ import asyncio
 from datetime import datetime, timezone
 
 from app.celery_app import celery
-from app.db.session import async_session
+from app.db.session import task_session
 from app.models.job import Job, JobStatus
 from app.models.operation_log import LogStatus
 from app.models.patch_operation import OperationType, PatchOperation, PatchStatus, RiskLevel
@@ -21,7 +21,7 @@ async def _run_cleanup(job_id: str, target_path: str, parameters: dict | None):
         files = await client.list_folder(target_path or "")
         md_files = [f for f in files if f.endswith(".md")]
 
-        async with async_session() as session:
+        async with task_session() as session:
             job = await session.get(Job, job_id)
             if not job:
                 return
@@ -61,7 +61,7 @@ async def _run_cleanup(job_id: str, target_path: str, parameters: dict | None):
                     cleanup_results["issues_found"] += 1
                     idem_key = compute_idempotency_key(file_path, "update_frontmatter_key", {"key": key, "value": []})
 
-                    async with async_session() as session:
+                    async with task_session() as session:
                         job = await session.get(Job, job_id)
                         if not job:
                             return
@@ -106,13 +106,13 @@ async def _run_cleanup(job_id: str, target_path: str, parameters: dict | None):
             for match in re.finditer(r"(?<!\S)#([a-zA-Z][a-zA-Z0-9/_-]*)", note.frontmatter.get("__body__", "") if isinstance(note.frontmatter, dict) else ""):
                 inline_tags.add(match.group(1))
 
-            async with async_session() as session:
+            async with task_session() as session:
                 job = await session.get(Job, job_id)
                 if job:
                     job.progress_current = i + 1
                     await session.commit()
 
-        async with async_session() as session:
+        async with task_session() as session:
             job = await session.get(Job, job_id)
             if job:
                 job.status = JobStatus.completed
@@ -121,7 +121,7 @@ async def _run_cleanup(job_id: str, target_path: str, parameters: dict | None):
                 await session.commit()
 
     except Exception as exc:
-        async with async_session() as session:
+        async with task_session() as session:
             job = await session.get(Job, job_id)
             if job:
                 job.status = JobStatus.failed

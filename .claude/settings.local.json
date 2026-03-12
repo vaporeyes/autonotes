@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(bash .specify/scripts/bash/create-new-feature.sh \"Build an AI-Orchestrator that interfaces with the Obsidian Local REST API. The application must be able to: Read & Analyze: Parse Markdown and Frontmatter from specific files or folders. Surgical Edit: Use JSON Patch \\(RFC 6902\\) to append backlinks, update tags, or modify metadata without touching the rest of the note body. Command Execution: Trigger native Obsidian commands \\(like Save or Template Insertion\\) via API. State Management: Track long-running vault scans using a task queue. The UI should be a simple FastAPI-generated Swagger/Redoc interface for monitoring agent logs and triggering manual Vault Cleanup jobs.\" --json --short-name \"ai-orchestrator\")",
-      "Bash(bash .specify/scripts/bash/check-prerequisites.sh --json)"
+      "Bash(bash .specify/scripts/bash/check-prerequisites.sh --json)",
+      "Bash(docker compose:*)"
     ]
   }
 }

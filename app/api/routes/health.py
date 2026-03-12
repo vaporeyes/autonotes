@@ -1,15 +1,19 @@
 # ABOUTME: Health check endpoint verifying Obsidian API, Redis, and Postgres connectivity.
 # ABOUTME: Returns per-service status and count of active jobs.
 
+import logging
+
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db.session import get_session
 from app.models.job import Job, JobStatus
 from app.services.obsidian_client import obsidian_client
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Health"])
 
@@ -28,7 +32,8 @@ async def health_check(session: AsyncSession = Depends(get_session)):
     try:
         await obsidian_client.health_check()
         result["obsidian_api"] = "connected"
-    except Exception:
+    except Exception as exc:
+        logger.warning("Obsidian API health check failed: %s", exc)
         result["status"] = "degraded"
 
     # Redis
@@ -37,19 +42,28 @@ async def health_check(session: AsyncSession = Depends(get_session)):
         await r.ping()
         await r.aclose()
         result["redis"] = "connected"
-    except Exception:
+    except Exception as exc:
+        logger.warning("Redis health check failed: %s", exc)
         result["status"] = "degraded"
 
-    # Postgres + active jobs count
+    # Postgres connectivity (simple SELECT 1, no table dependency)
     try:
-        count = await session.scalar(
-            select(func.count()).select_from(Job).where(
-                Job.status.in_([JobStatus.pending, JobStatus.running])
-            )
-        )
+        await session.execute(text("SELECT 1"))
         result["postgres"] = "connected"
-        result["active_jobs"] = count or 0
-    except Exception:
+    except Exception as exc:
+        logger.warning("Postgres health check failed: %s", exc)
         result["status"] = "degraded"
+
+    # Active jobs count (only if postgres is connected and tables exist)
+    if result["postgres"] == "connected":
+        try:
+            count = await session.scalar(
+                select(func.count()).select_from(Job).where(
+                    Job.status.in_([JobStatus.pending, JobStatus.running])
+                )
+            )
+            result["active_jobs"] = count or 0
+        except Exception:
+            pass
 
     return result

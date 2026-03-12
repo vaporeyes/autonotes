@@ -4,12 +4,12 @@
 import asyncio
 
 from app.celery_app import celery
-from app.db.session import async_session
+from app.db.session import task_session
 from app.services import log_service
 
 
 async def _run_purge():
-    async with async_session() as session:
+    async with task_session() as session:
         deleted = await log_service.purge_old_logs(session)
         await session.commit()
         return deleted

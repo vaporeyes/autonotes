@@ -16,6 +16,7 @@ async def analyze(
     target_path: str,
     analysis_type: str,
     session: AsyncSession,
+    job_id: str | None = None,
     client: ObsidianClient | None = None,
     provider: LLMProvider | None = None,
 ) -> dict:
@@ -24,18 +25,23 @@ async def analyze(
     should_close = client is not None
 
     try:
-        files = await client.list_folder(target_path)
-        md_files = [f for f in files if f.endswith(".md")]
-
         notes_content = []
         note_paths = []
-        for fp in md_files[:50]:
-            try:
-                raw = await client.get_note_raw(fp)
-                notes_content.append(f"--- {fp} ---\n{raw}")
-                note_paths.append(fp)
-            except Exception:
-                continue
+
+        if target_path.endswith(".md"):
+            raw = await client.get_note_raw(target_path)
+            notes_content.append(f"--- {target_path} ---\n{raw}")
+            note_paths.append(target_path)
+        else:
+            files = await client.list_folder(target_path)
+            md_files = [f for f in files if f.endswith(".md")]
+            for fp in md_files[:50]:
+                try:
+                    raw = await client.get_note_raw(fp)
+                    notes_content.append(f"--- {fp} ---\n{raw}")
+                    note_paths.append(fp)
+                except Exception:
+                    continue
 
         system_prompt = ANALYSIS_PROMPTS.get(analysis_type, ANALYSIS_PROMPTS["cleanup_targets"])
         user_message = "\n\n".join(notes_content)
@@ -43,7 +49,7 @@ async def analyze(
         response_text, prompt_tokens, completion_tokens = await provider.complete(system_prompt, user_message)
 
         interaction = LLMInteraction(
-            job_id=None,
+            job_id=job_id,
             provider=provider.provider_name,
             model=provider.model_name,
             notes_sent=note_paths,

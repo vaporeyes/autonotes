@@ -33,12 +33,22 @@ class ObsidianClient:
         resp.raise_for_status()
         return resp.text
 
-    async def list_folder(self, path: str) -> list[str]:
-        url = f"/vault/{path}/" if not path.endswith("/") else f"/vault/{path}"
+    async def list_folder(self, path: str, recursive: bool = False) -> list[str]:
+        folder = path.rstrip("/")
+        url = f"/vault/{folder}/"
         resp = await self._client.get(url)
         resp.raise_for_status()
         data = resp.json()
-        return data.get("files", [])
+        prefix = f"{folder}/" if folder else ""
+
+        results = []
+        for name in data.get("files", []):
+            full_path = prefix + name
+            if name.endswith("/") and recursive:
+                results.extend(await self.list_folder(full_path, recursive=True))
+            else:
+                results.append(full_path)
+        return results
 
     async def put_note(self, path: str, content: str) -> None:
         resp = await self._client.put(
