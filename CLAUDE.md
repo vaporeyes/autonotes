@@ -1,30 +1,96 @@
 # autonotes Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-12
+## Project Overview
+
+AI Orchestrator for Obsidian vault management. FastAPI API + Celery worker + PostgreSQL + Redis, deployed via Docker Compose.
 
 ## Active Technologies
 
-- Python 3.12 + FastAPI, Celery, httpx, python-frontmatter, ruamel.yaml, markdown-it-py, SQLAlchemy (001-ai-orchestrator)
+- Python 3.12
+- FastAPI, Celery, httpx, SQLAlchemy, Alembic
+- python-frontmatter, ruamel.yaml, markdown-it-py
+- Anthropic SDK, OpenAI SDK
+- PostgreSQL 16 (persistent), Redis 7 (broker + cache)
+- Docker Compose
 
 ## Project Structure
 
 ```text
-backend/
-frontend/
-tests/
+app/
+  __init__.py
+  main.py              # FastAPI app factory + lifespan
+  config.py            # pydantic-settings (env vars)
+  celery_app.py        # Celery singleton + beat schedule
+  api/routes/
+    __init__.py         # Shared error handling (AppError, factory functions)
+    health.py           # GET /health
+    notes.py            # GET /notes/{path}, GET /notes/folder/{path}
+    patches.py          # POST /patches, approve, reject
+    commands.py         # GET/POST /commands
+    jobs.py             # POST /jobs, GET /jobs, cancel
+    ai.py               # POST /ai/analyze, POST /ai/chat
+    logs.py             # GET /logs
+  models/
+    job.py              # Job (vault_scan, cleanup, ai_analysis, etc.)
+    patch_operation.py  # PatchOperation (add_tag, add_backlink, etc.)
+    operation_log.py    # OperationLog (immutable audit)
+    llm_interaction.py  # LLMInteraction (privacy tracking)
+  schemas/              # Pydantic request/response models
+  services/
+    obsidian_client.py  # httpx async client for Obsidian REST API
+    note_parser.py      # Frontmatter + markdown-it-py parsing
+    patch_engine.py     # Idempotent patch application logic
+    log_service.py      # Operation log writes + retention purge
+    command_service.py  # Obsidian command forwarding
+    job_service.py      # Job CRUD + dedup logic
+    llm_provider.py     # Abstract LLM interface (Claude/OpenAI)
+    ai_service.py       # AI analysis, suggestions, chat
+    prompts.py          # System prompts for LLM interactions
+  tasks/
+    vault_scan.py       # Celery: vault scan with progress
+    vault_cleanup.py    # Celery: cleanup with risk tiers
+    ai_analysis.py      # Celery: LLM-powered analysis
+    log_purge.py        # Celery beat: scheduled log retention
+  db/
+    session.py          # SQLAlchemy async engine + session factory
+    migrations/         # Alembic migrations
 ```
 
 ## Commands
 
-cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] pytest [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] ruff check .
+```bash
+# Run full stack
+docker compose up -d
+docker compose exec api uv run alembic upgrade head
 
-## Code Style
+# Development (local)
+uv sync
+uv run uvicorn app.main:app --reload
+uv run celery -A app.celery_app worker --loglevel=info
 
-Python 3.12: Follow standard conventions
+# Lint
+uv run ruff check .
 
-## Recent Changes
+# Test
+uv run pytest
+```
 
-- 001-ai-orchestrator: Added Python 3.12 + FastAPI, Celery, httpx, python-frontmatter, ruamel.yaml, markdown-it-py, SQLAlchemy
+## Code Conventions
+
+- All Python files start with two `# ABOUTME:` comment lines
+- pydantic-settings for config (`app/config.py`)
+- Async SQLAlchemy sessions via `get_session` FastAPI dependency
+- All write operations go through `patch_engine.py` for idempotency
+- All mutations logged via `log_service.py`
+- Error responses use `AppError` from `app/api/routes/__init__.py`
+- Obsidian REST API PATCH uses heading-based headers, NOT JSON Patch RFC 6902
+
+## Key Architecture Rules
+
+- No full-file rewrites. Frontmatter: key-level merge. Body: line-range splice.
+- Low-risk ops auto-apply. High-risk ops require approval.
+- No note content sent to LLM without explicit user trigger.
+- Jobs with same idempotency_key deduplicate against pending/running jobs.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

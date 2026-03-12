@@ -9,34 +9,7 @@ from app.models.llm_interaction import LLMInteraction
 from app.services.llm_provider import LLMProvider, get_llm_provider
 from app.services.note_parser import parse_note
 from app.services.obsidian_client import ObsidianClient
-
-_ANALYSIS_PROMPTS = {
-    "suggest_backlinks": (
-        "You are an Obsidian vault assistant. Analyze these notes and suggest "
-        "backlinks that should exist between them. Return a JSON array of objects "
-        'with "source", "target", and "reason" fields.'
-    ),
-    "suggest_tags": (
-        "You are an Obsidian vault assistant. Analyze these notes and suggest "
-        "tags that would improve organization. Return a JSON array of objects "
-        'with "path", "tags", and "reason" fields.'
-    ),
-    "generate_summary": (
-        "You are an Obsidian vault assistant. Generate a concise summary "
-        "of the provided notes, highlighting key themes and connections."
-    ),
-    "cleanup_targets": (
-        "You are an Obsidian vault assistant. Identify structural issues in these "
-        "notes: missing frontmatter, orphaned links, inconsistent tags. "
-        'Return a JSON array of objects with "path", "issue", and "fix" fields.'
-    ),
-}
-
-_CHAT_PROMPT = (
-    "You are an Obsidian vault assistant. Answer the user's question based "
-    "only on the provided notes. Cite specific notes when making claims. "
-    "If the notes don't contain enough information, say so."
-)
+from app.services.prompts import ANALYSIS_PROMPTS, CHAT_PROMPT
 
 
 async def analyze(
@@ -64,7 +37,7 @@ async def analyze(
             except Exception:
                 continue
 
-        system_prompt = _ANALYSIS_PROMPTS.get(analysis_type, _ANALYSIS_PROMPTS["cleanup_targets"])
+        system_prompt = ANALYSIS_PROMPTS.get(analysis_type, ANALYSIS_PROMPTS["cleanup_targets"])
         user_message = "\n\n".join(notes_content)
 
         response_text, prompt_tokens, completion_tokens = await provider.complete(system_prompt, user_message)
@@ -126,7 +99,7 @@ async def chat(
                 continue
 
         user_message = f"Question: {question}\n\nNotes:\n" + "\n\n".join(notes_content)
-        response_text, prompt_tokens, completion_tokens = await provider.complete(_CHAT_PROMPT, user_message)
+        response_text, prompt_tokens, completion_tokens = await provider.complete(CHAT_PROMPT, user_message)
 
         interaction = LLMInteraction(
             job_id=None,
