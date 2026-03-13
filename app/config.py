@@ -27,5 +27,10 @@ class Settings(BaseSettings):
     # Operation log retention
     log_retention_days: int = 90
 
+    # Vault health analytics
+    health_scan_cron: str = "0 4 * * *"  # Daily at 4am UTC
+    health_scan_scope: str = "/"
+    health_stale_threshold_hours: int = 24
+
 
 settings = Settings()

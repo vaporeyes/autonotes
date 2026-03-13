@@ -9,12 +9,13 @@ AI-powered orchestrator for Obsidian vault management. Reads, analyzes, and surg
 - **Command Execution** - List and trigger native Obsidian commands via API
 - **Background Scans** - Run vault-wide scans for orphaned links, missing tags, and structural issues via Celery task queue
 - **AI Assistant** - LLM-powered analysis (suggest backlinks, suggest tags, generate summaries) and conversational vault chat
+- **Vault Health Analytics** - Track orphan notes, tag distribution, backlink density, and cluster connectivity. Composite health score (0-100) with historical trends and a consolidated dashboard endpoint. Scheduled scans via Celery beat
 - **Audit Trail** - Every mutation is logged with before/after content hashes. Logs auto-purge after configurable retention period
 
 ## Architecture
 
 ```
-FastAPI API (port 8000)  <-->  Obsidian Local REST API (port 27124)
+FastAPI API (port 8000)  <-->  Obsidian Local REST API (port 27123)
       |
 Celery Worker  <-->  Redis (broker + result backend)
       |
@@ -62,10 +63,11 @@ See [quickstart.md](specs/001-ai-orchestrator/quickstart.md) for detailed usage 
 | Commands | `GET /commands`, `POST /commands/{id}` | Obsidian command execution |
 | Jobs | `POST /jobs`, `GET /jobs/{id}`, `GET /jobs`, `POST /jobs/{id}/cancel` | Background task management |
 | AI | `POST /ai/analyze`, `POST /ai/chat` | LLM-powered analysis and chat |
+| Vault Health | `GET /vault-health/snapshot/{job_id}`, `GET /vault-health/latest`, `GET /vault-health/trends`, `GET /vault-health/dashboard` | Health metrics, trends, dashboard |
 | Logs | `GET /logs` | Operation audit trail |
 | Health | `GET /health` | Service connectivity check |
 
-All endpoints are under `/api/v1`. See [contracts/api.md](specs/001-ai-orchestrator/contracts/api.md) for full request/response specs.
+All endpoints are under `/api/v1`. See [contracts/api.md](specs/001-ai-orchestrator/contracts/api.md) for the orchestrator API spec and [contracts/api.md](specs/002-vault-health-analytics/contracts/api.md) for the health analytics API spec.
 
 ## Key Design Decisions
 

@@ -3,7 +3,17 @@
     "allow": [
       "Bash(bash .specify/scripts/bash/create-new-feature.sh \"Build an AI-Orchestrator that interfaces with the Obsidian Local REST API. The application must be able to: Read & Analyze: Parse Markdown and Frontmatter from specific files or folders. Surgical Edit: Use JSON Patch \\(RFC 6902\\) to append backlinks, update tags, or modify metadata without touching the rest of the note body. Command Execution: Trigger native Obsidian commands \\(like Save or Template Insertion\\) via API. State Management: Track long-running vault scans using a task queue. The UI should be a simple FastAPI-generated Swagger/Redoc interface for monitoring agent logs and triggering manual Vault Cleanup jobs.\" --json --short-name \"ai-orchestrator\")",
       "Bash(bash .specify/scripts/bash/check-prerequisites.sh --json)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks 2>&1)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh \"Build a vault health analytics system that tracks orphan notes, tag distribution, backlink density, and cluster connectivity over time. Surface a dashboard endpoint with current metrics and historical trends. Integrate with the existing job system for scheduled scans.\" --json --short-name \"vault-health-analytics\" 2>&1)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh --json --paths-only)",
+      "Bash(.specify/scripts/bash/setup-plan.sh --json)",
+      "Bash(.specify/scripts/bash/update-agent-context.sh claude:*)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh --json)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)",
+      "Bash(command grep:*)",
+      "Bash(uv run:*)",
+      "Bash(python3 -m ruff check app/models/health_snapshot.py app/schemas/health.py app/services/health_service.py app/tasks/vault_health_scan.py app/api/routes/vault_health.py app/api/routes/jobs.py app/celery_app.py app/main.py app/config.py app/models/job.py 2>&1 || true)"
     ]
   }
 }

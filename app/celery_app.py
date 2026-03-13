@@ -15,6 +15,7 @@ celery = Celery(
         "app.tasks.vault_cleanup",
         "app.tasks.ai_analysis",
         "app.tasks.log_purge",
+        "app.tasks.vault_health_scan",
     ],
 )
 
@@ -27,9 +28,32 @@ celery.conf.update(
     task_track_started=True,
 )
 
+def _parse_cron(expr: str) -> crontab:
+    """Parse a 5-field cron expression into a Celery crontab."""
+    parts = expr.split()
+    if len(parts) != 5:
+        return crontab(hour=4, minute=0)
+    return crontab(
+        minute=parts[0],
+        hour=parts[1],
+        day_of_month=parts[2],
+        month_of_year=parts[3],
+        day_of_week=parts[4],
+    )
+
+
 celery.conf.beat_schedule = {
     "purge-old-logs": {
         "task": "log_purge",
         "schedule": crontab(hour=3, minute=0),
+    },
+    "scheduled-health-scan": {
+        "task": "vault_health_scan",
+        "schedule": _parse_cron(settings.health_scan_cron),
+        "args": [None, settings.health_scan_scope, None],
+    },
+    "purge-old-snapshots": {
+        "task": "health_snapshot_purge",
+        "schedule": crontab(hour=3, minute=30),
     },
 }
