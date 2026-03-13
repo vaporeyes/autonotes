@@ -32,5 +32,9 @@ class Settings(BaseSettings):
     health_scan_scope: str = "/"
     health_stale_threshold_hours: int = 24
 
+    # Auto-triage
+    triage_scan_cron: str = "0 5 * * *"  # Daily at 5am UTC
+    triage_scan_scope: str = "/"
+
 
 settings = Settings()

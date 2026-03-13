@@ -16,6 +16,7 @@ from app.services import job_service
 from app.tasks.ai_analysis import ai_analysis
 from app.tasks.vault_cleanup import vault_cleanup
 from app.tasks.vault_health_scan import vault_health_scan
+from app.tasks.triage_scan import triage_scan
 from app.tasks.vault_scan import vault_scan
 
 router = APIRouter(tags=["Jobs"])
@@ -25,6 +26,7 @@ _TASK_DISPATCH = {
     JobType.vault_cleanup: vault_cleanup,
     JobType.ai_analysis: ai_analysis,
     JobType.vault_health_scan: vault_health_scan,
+    JobType.triage_scan: triage_scan,
 }
 
 

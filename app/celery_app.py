@@ -16,6 +16,7 @@ celery = Celery(
         "app.tasks.ai_analysis",
         "app.tasks.log_purge",
         "app.tasks.vault_health_scan",
+        "app.tasks.triage_scan",
     ],
 )
 
@@ -55,5 +56,10 @@ celery.conf.beat_schedule = {
     "purge-old-snapshots": {
         "task": "health_snapshot_purge",
         "schedule": crontab(hour=3, minute=30),
+    },
+    "scheduled-triage-scan": {
+        "task": "triage_scan",
+        "schedule": _parse_cron(settings.triage_scan_cron),
+        "args": [None, settings.triage_scan_scope, None],
     },
 }

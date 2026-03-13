@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.routes import AppError, app_error_handler, health
-from app.api.routes import ai, commands, jobs, logs, notes, patches, vault_health
+from app.api.routes import ai, commands, conventions, jobs, logs, notes, patches, triage, vault_health
 
 
 @asynccontextmanager
@@ -29,6 +29,8 @@ def create_app() -> FastAPI:
             {"name": "Jobs", "description": "Submit and track background jobs (scans, cleanup, AI analysis)"},
             {"name": "AI", "description": "LLM-powered analysis, suggestions, and chat"},
             {"name": "Logs", "description": "Query operation audit logs"},
+            {"name": "Conventions", "description": "Folder convention CRUD and inheritance resolution"},
+            {"name": "Triage", "description": "Auto-triage scan results and history"},
             {"name": "Vault Health", "description": "Vault health analytics, trends, and dashboard"},
             {"name": "Health", "description": "System health and connectivity checks"},
         ],
@@ -41,6 +43,8 @@ def create_app() -> FastAPI:
     app.include_router(commands.router, prefix="/api/v1")
     app.include_router(jobs.router, prefix="/api/v1")
     app.include_router(ai.router, prefix="/api/v1")
+    app.include_router(conventions.router, prefix="/api/v1")
+    app.include_router(triage.router, prefix="/api/v1")
     app.include_router(vault_health.router, prefix="/api/v1")
     app.include_router(logs.router, prefix="/api/v1")
 

@@ -30,11 +30,15 @@ app/
     jobs.py             # POST /jobs, GET /jobs, cancel
     ai.py               # POST /ai/analyze, POST /ai/chat
     logs.py             # GET /logs
+    conventions.py      # CRUD /conventions, GET /conventions/resolve
+    triage.py           # GET /triage/results, GET /triage/history
   models/
-    job.py              # Job (vault_scan, cleanup, ai_analysis, etc.)
+    job.py              # Job (vault_scan, cleanup, ai_analysis, triage_scan, etc.)
     patch_operation.py  # PatchOperation (add_tag, add_backlink, etc.)
     operation_log.py    # OperationLog (immutable audit)
     llm_interaction.py  # LLMInteraction (privacy tracking)
+    folder_convention.py # FolderConvention (per-folder rules)
+    triage_issue.py     # TriageIssue (convention violation records)
   schemas/              # Pydantic request/response models
   services/
     obsidian_client.py  # httpx async client for Obsidian REST API
@@ -46,11 +50,14 @@ app/
     llm_provider.py     # Abstract LLM interface (Claude/OpenAI)
     ai_service.py       # AI analysis, suggestions, chat
     prompts.py          # System prompts for LLM interactions
+    convention_service.py # Convention CRUD + inheritance resolution
+    triage_service.py   # Triage scan engine + auto-fix + suggestions
   tasks/
     vault_scan.py       # Celery: vault scan with progress
     vault_cleanup.py    # Celery: cleanup with risk tiers
     ai_analysis.py      # Celery: LLM-powered analysis
     log_purge.py        # Celery beat: scheduled log retention
+    triage_scan.py      # Celery: auto-triage scan with progress
   db/
     session.py          # SQLAlchemy async engine + session factory
     migrations/         # Alembic migrations

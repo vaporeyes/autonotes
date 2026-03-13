@@ -10,6 +10,7 @@ AI-powered orchestrator for Obsidian vault management. Reads, analyzes, and surg
 - **Background Scans** - Run vault-wide scans for orphaned links, missing tags, and structural issues via Celery task queue
 - **AI Assistant** - LLM-powered analysis (suggest backlinks, suggest tags, generate summaries) and conversational vault chat
 - **Vault Health Analytics** - Track orphan notes, tag distribution, backlink density, and cluster connectivity. Composite health score (0-100) with historical trends and a consolidated dashboard endpoint. Scheduled scans via Celery beat
+- **Auto-Triage** - Define folder conventions (required frontmatter, expected tags, backlink targets) and periodically scan notes for compliance. Low-risk fixes (missing defaults, tag normalization) auto-apply; high-risk suggestions (backlinks) queue for approval. Convention inheritance lets sub-folders override parent rules
 - **Audit Trail** - Every mutation is logged with before/after content hashes. Logs auto-purge after configurable retention period
 
 ## Architecture
@@ -19,7 +20,7 @@ FastAPI API (port 8000)  <-->  Obsidian Local REST API (port 27123)
       |
 Celery Worker  <-->  Redis (broker + result backend)
       |
-PostgreSQL (jobs, patches, logs, LLM interactions)
+PostgreSQL (jobs, patches, logs, LLM interactions, conventions, triage issues)
 ```
 
 All services run in Docker Compose. The API and worker containers reach Obsidian on the host machine via `host.docker.internal`.
@@ -63,11 +64,13 @@ See [quickstart.md](specs/001-ai-orchestrator/quickstart.md) for detailed usage 
 | Commands | `GET /commands`, `POST /commands/{id}` | Obsidian command execution |
 | Jobs | `POST /jobs`, `GET /jobs/{id}`, `GET /jobs`, `POST /jobs/{id}/cancel` | Background task management |
 | AI | `POST /ai/analyze`, `POST /ai/chat` | LLM-powered analysis and chat |
+| Conventions | `POST /conventions`, `GET /conventions`, `GET /conventions/{id}`, `PUT /conventions/{id}`, `DELETE /conventions/{id}`, `GET /conventions/resolve` | Folder convention CRUD and inheritance resolution |
+| Triage | `GET /triage/results/{job_id}`, `GET /triage/history` | Auto-triage scan results and history |
 | Vault Health | `GET /vault-health/snapshot/{job_id}`, `GET /vault-health/latest`, `GET /vault-health/trends`, `GET /vault-health/dashboard` | Health metrics, trends, dashboard |
 | Logs | `GET /logs` | Operation audit trail |
 | Health | `GET /health` | Service connectivity check |
 
-All endpoints are under `/api/v1`. See [contracts/api.md](specs/001-ai-orchestrator/contracts/api.md) for the orchestrator API spec and [contracts/api.md](specs/002-vault-health-analytics/contracts/api.md) for the health analytics API spec.
+All endpoints are under `/api/v1`. Triage scans are triggered via `POST /jobs` with `job_type: "triage_scan"`. See [contracts/api.md](specs/001-ai-orchestrator/contracts/api.md) for the orchestrator API spec, [contracts/api.md](specs/002-vault-health-analytics/contracts/api.md) for health analytics, and [contracts/api.md](specs/003-auto-triage/contracts/api.md) for auto-triage.
 
 ## Key Design Decisions
 
