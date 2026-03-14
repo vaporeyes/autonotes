@@ -36,3 +36,10 @@ class FolderResponse(BaseModel):
     folder: str
     note_count: int
     notes: list[NoteSummary]
+
+
+class VaultStructureNode(BaseModel):
+    name: str
+    path: str
+    note_count: int
+    children: list["VaultStructureNode"]

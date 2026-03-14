@@ -1,9 +1,11 @@
 # ABOUTME: FastAPI application factory with lifespan handler for startup/shutdown.
-# ABOUTME: Mounts all route modules under /api/v1 prefix.
+# ABOUTME: Mounts all route modules under /api/v1 prefix and serves the web dashboard.
 
+import pathlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import AppError, app_error_handler, health
 from app.api.routes import ai, batch_patches, clusters, commands, conventions, jobs, logs, notes, patches, similarity, triage, vault_health
@@ -54,6 +56,10 @@ def create_app() -> FastAPI:
     app.include_router(clusters.router, prefix="/api/v1")
     app.include_router(vault_health.router, prefix="/api/v1")
     app.include_router(logs.router, prefix="/api/v1")
+
+    # Mount web dashboard static files
+    static_dir = pathlib.Path(__file__).parent / "static"
+    app.mount("/dashboard", StaticFiles(directory=str(static_dir), html=True), name="dashboard")
 
     return app
 

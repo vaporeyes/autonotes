@@ -7,11 +7,43 @@ import httpx
 from fastapi import APIRouter
 
 from app.api.routes import not_found, obsidian_error, obsidian_unreachable
-from app.schemas.note import FolderResponse, Note, NoteSummary
+from app.schemas.note import FolderResponse, Note, NoteSummary, VaultStructureNode
 from app.services.note_parser import parse_note, parse_note_summary
 from app.services.obsidian_client import obsidian_client
 
 router = APIRouter(tags=["Notes"])
+
+
+@router.get("/vault-structure", response_model=VaultStructureNode)
+async def get_vault_structure():
+    async def build_tree(path: str, name: str) -> VaultStructureNode:
+        try:
+            files = await obsidian_client.list_folder(path)
+        except Exception:
+            return VaultStructureNode(name=name, path=path, note_count=0, children=[])
+
+        note_count = sum(1 for f in files if f.endswith(".md"))
+        children = []
+        prefix = f"{path.strip('/')}/" if path.strip("/") else ""
+        for f in files:
+            full = prefix + f
+            if f.endswith("/"):
+                child = await build_tree(full.rstrip("/"), f.rstrip("/"))
+                children.append(child)
+
+        children.sort(key=lambda c: c.name)
+        return VaultStructureNode(
+            name=name,
+            path=path + "/" if path and not path.endswith("/") else path or "/",
+            note_count=note_count,
+            children=children,
+        )
+
+    try:
+        tree = await build_tree("", "/")
+    except httpx.ConnectError:
+        raise obsidian_unreachable()
+    return tree
 
 
 @router.get("/notes/folder/{path:path}", response_model=FolderResponse)

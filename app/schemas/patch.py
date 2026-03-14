@@ -33,3 +33,20 @@ class ApproveResponse(BaseModel):
 
 class RejectResponse(BaseModel):
     status: str
+
+
+class PatchListItem(BaseModel):
+    patch_id: str
+    job_id: str
+    target_path: str
+    operation_type: str
+    payload: dict
+    status: str
+    risk_level: str
+    created_at: str
+    applied_at: str | None = None
+
+
+class PatchListResponse(BaseModel):
+    patches: list[PatchListItem]
+    total: int

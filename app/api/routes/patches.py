@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 
 import frontmatter as fm
 import httpx
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes import conflict, not_found, obsidian_error, obsidian_unreachable
@@ -17,6 +17,8 @@ from app.models.operation_log import LogStatus
 from app.models.patch_operation import OperationType, PatchOperation, PatchStatus
 from app.schemas.patch import (
     ApproveResponse,
+    PatchListItem,
+    PatchListResponse,
     PatchOperationResult,
     PatchRequest,
     PatchResult,
@@ -29,6 +31,46 @@ from app.services.obsidian_client import obsidian_client
 from app.services.patch_engine import apply_patch, classify_risk, compute_idempotency_key
 
 router = APIRouter(tags=["Patches"])
+
+
+@router.get("/patches", response_model=PatchListResponse)
+async def list_patches(
+    status: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    stmt = select(PatchOperation).order_by(PatchOperation.created_at.desc())
+    count_stmt = select(func.count()).select_from(PatchOperation)
+
+    if status:
+        try:
+            ps = PatchStatus(status)
+        except ValueError:
+            raise conflict(f"Invalid status: {status}")
+        stmt = stmt.where(PatchOperation.status == ps)
+        count_stmt = count_stmt.where(PatchOperation.status == ps)
+
+    total = await session.scalar(count_stmt) or 0
+    stmt = stmt.offset(offset).limit(limit)
+    result = await session.execute(stmt)
+    patches = result.scalars().all()
+
+    items = [
+        PatchListItem(
+            patch_id=str(p.id),
+            job_id=str(p.job_id),
+            target_path=p.target_path,
+            operation_type=p.operation_type.value,
+            payload=p.payload,
+            status=p.status.value,
+            risk_level=p.risk_level.value,
+            created_at=p.created_at.isoformat(),
+            applied_at=p.applied_at.isoformat() if p.applied_at else None,
+        )
+        for p in patches
+    ]
+    return PatchListResponse(patches=items, total=total)
 
 
 @router.post("/patches", response_model=PatchResult)
