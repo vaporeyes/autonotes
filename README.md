@@ -12,6 +12,7 @@ AI-powered orchestrator for Obsidian vault management. Reads, analyzes, and surg
 - **Vault Health Analytics** - Track orphan notes, tag distribution, backlink density, and cluster connectivity. Composite health score (0-100) with historical trends and a consolidated dashboard endpoint. Scheduled scans via Celery beat
 - **Auto-Triage** - Define folder conventions (required frontmatter, expected tags, backlink targets) and periodically scan notes for compliance. Low-risk fixes (missing defaults, tag normalization) auto-apply; high-risk suggestions (backlinks) queue for approval. Convention inheritance lets sub-folders override parent rules
 - **Note Similarity Engine** - Embed vault notes via OpenAI text-embedding-3-small, search for similar notes by path or free-text query, detect near-duplicate pairs, cluster related notes with HDBSCAN, and generate Map of Content (MOC) drafts linking clustered notes. Incremental re-embedding via content hash staleness detection. MOC generation goes through the patch approval workflow
+- **Batch Patch & Undo** - Apply the same operation across multiple notes by folder path or similarity query. Dry-run preview shows affected notes before committing. Undo any applied patch via reverse-apply with content hash verification, or undo an entire batch job at once. Large batches run as background jobs with progress tracking
 - **Audit Trail** - Every mutation is logged with before/after content hashes. Logs auto-purge after configurable retention period
 
 ## Architecture
@@ -62,9 +63,10 @@ See [quickstart.md](specs/001-ai-orchestrator/quickstart.md) for detailed usage 
 | Group | Endpoints | Description |
 |-------|-----------|-------------|
 | Notes | `GET /notes/{path}`, `GET /notes/folder/{path}` | Read and analyze notes |
-| Patches | `POST /patches`, `POST /patches/{id}/approve`, `POST /patches/{id}/reject` | Surgical edits with risk-tiered approval |
+| Patches | `POST /patches`, `POST /patches/{id}/approve`, `POST /patches/{id}/reject`, `POST /patches/{id}/undo` | Surgical edits with risk-tiered approval and undo |
+| Batch Patches | `POST /batch-patches` | Batch operations by folder or similarity query |
 | Commands | `GET /commands`, `POST /commands/{id}` | Obsidian command execution |
-| Jobs | `POST /jobs`, `GET /jobs/{id}`, `GET /jobs`, `POST /jobs/{id}/cancel` | Background task management |
+| Jobs | `POST /jobs`, `GET /jobs/{id}`, `GET /jobs`, `POST /jobs/{id}/cancel`, `POST /jobs/{id}/undo` | Background task management and batch undo |
 | AI | `POST /ai/analyze`, `POST /ai/chat` | LLM-powered analysis and chat |
 | Conventions | `POST /conventions`, `GET /conventions`, `GET /conventions/{id}`, `PUT /conventions/{id}`, `DELETE /conventions/{id}`, `GET /conventions/resolve` | Folder convention CRUD and inheritance resolution |
 | Triage | `GET /triage/results/{job_id}`, `GET /triage/history` | Auto-triage scan results and history |
@@ -75,7 +77,7 @@ See [quickstart.md](specs/001-ai-orchestrator/quickstart.md) for detailed usage 
 | Logs | `GET /logs` | Operation audit trail |
 | Health | `GET /health` | Service connectivity check |
 
-All endpoints are under `/api/v1`. Embedding and clustering are triggered via `POST /jobs` with `job_type: "embed_notes"` or `"cluster_notes"`. See [contracts/api.md](specs/001-ai-orchestrator/contracts/api.md) for the orchestrator API spec, [contracts/api.md](specs/002-vault-health-analytics/contracts/api.md) for health analytics, [contracts/api.md](specs/003-auto-triage/contracts/api.md) for auto-triage, and [contracts/api.md](specs/004-note-similarity-engine/contracts/api.md) for similarity engine.
+All endpoints are under `/api/v1`. Embedding and clustering are triggered via `POST /jobs` with `job_type: "embed_notes"` or `"cluster_notes"`. See [contracts/api.md](specs/001-ai-orchestrator/contracts/api.md) for the orchestrator API spec, [contracts/api.md](specs/002-vault-health-analytics/contracts/api.md) for health analytics, [contracts/api.md](specs/003-auto-triage/contracts/api.md) for auto-triage, [contracts/api.md](specs/004-note-similarity-engine/contracts/api.md) for similarity engine, and [contracts/api.md](specs/005-batch-patch-undo/contracts/api.md) for batch patch and undo.
 
 ## Key Design Decisions
 

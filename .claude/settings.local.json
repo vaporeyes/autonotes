@@ -23,7 +23,9 @@
       "Bash(.specify/scripts/bash/create-new-feature.sh \"Build an embeddings-based note similarity engine that detects near-duplicate notes and clusters related notes. Expose a similarity search endpoint and a MOC \\(Map of Content\\) generator that drafts a new note linking clustered notes together.\" --json --short-name \"note-similarity-engine\")",
       "Bash(ls /Users/jsh/dev/projects/autonotes/specs/002-vault-health-analytics/ 2>/dev/null && cat /Users/jsh/dev/projects/autonotes/specs/002-vault-health-analytics/*.md 2>/dev/null | head -200)",
       "Bash(git -C /Users/jsh/dev/projects/autonotes rev-parse --git-dir 2>/dev/null && echo \"IS_GIT=true\")",
-      "Bash(uv add:*)"
+      "Bash(uv add:*)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh \"Add batch patch operations \\(apply the same operation across multiple notes by folder or query\\) and an undo/rollback system that uses existing operation logs to revert patches to their previous content hash state.\" --json --short-name \"batch-patch-undo\" 2>&1)",
+      "Bash(git -C /Users/jsh/dev/projects/autonotes rev-parse --git-dir 2>/dev/null && echo \"IS_GIT=true\" || echo \"IS_GIT=false\")"
     ]
   }
 }

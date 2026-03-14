@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.routes import not_found, validation_error
+from app.api.routes import conflict, not_found, validation_error
 from app.db.session import get_session
 from app.models.job import JobType
 from app.schemas.job import JobProgress, JobRequest, JobListResponse, JobStatusResponse
@@ -16,6 +16,7 @@ from app.services import job_service
 from app.tasks.ai_analysis import ai_analysis
 from app.tasks.vault_cleanup import vault_cleanup
 from app.tasks.vault_health_scan import vault_health_scan
+from app.tasks.batch_patch_job import batch_patch
 from app.tasks.cluster_job import cluster_notes
 from app.tasks.embedding_job import embed_notes
 from app.tasks.triage_scan import triage_scan
@@ -31,6 +32,7 @@ _TASK_DISPATCH = {
     JobType.triage_scan: triage_scan,
     JobType.embed_notes: embed_notes,
     JobType.cluster_notes: cluster_notes,
+    JobType.batch_patch: batch_patch,
 }
 
 
@@ -131,3 +133,20 @@ async def cancel_job(job_id: uuid.UUID, session: AsyncSession = Depends(get_sess
         raise not_found(f"Job not found: {job_id}")
     await session.commit()
     return {"status": job.status.value}
+
+
+@router.post("/jobs/{job_id}/undo")
+async def undo_job(job_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
+    from app.services.undo_service import NoPatchesToUndoError, undo_job_patches
+
+    job = await job_service.get_job(session, job_id)
+    if not job:
+        raise not_found(f"Job not found: {job_id}")
+
+    try:
+        result = await undo_job_patches(session, job_id)
+    except NoPatchesToUndoError:
+        raise conflict("Job has no applied patches to undo")
+
+    await session.commit()
+    return result

@@ -34,6 +34,7 @@ class PatchStatus(str, enum.Enum):
     applied = "applied"
     skipped = "skipped"
     failed = "failed"
+    reverted = "reverted"
 
 
 class PatchOperation(Base):

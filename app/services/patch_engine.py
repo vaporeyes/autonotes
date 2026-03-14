@@ -9,7 +9,6 @@ import frontmatter
 from markdown_it import MarkdownIt
 
 from app.models.patch_operation import OperationType, RiskLevel
-from app.services.note_parser import compute_content_hash
 
 _WIKILINK_RE = re.compile(r"\[\[([^\[\]|]+)(?:\|[^\[\]]+)?\]\]")
 _TAG_RE = re.compile(r"(?<!\S)#([a-zA-Z][a-zA-Z0-9/_-]*)")
@@ -58,6 +57,61 @@ def apply_patch(raw_content: str, operation_type: str, payload: dict) -> tuple[s
         return _prepend_body(raw_content, payload["content"], payload.get("heading"))
 
     raise ValueError(f"Unknown operation type: {operation_type}")
+
+
+# Mapping from operation type to its inverse operation type
+_INVERSE_OPS = {
+    OperationType.add_tag: OperationType.remove_tag,
+    OperationType.remove_tag: OperationType.add_tag,
+    OperationType.add_backlink: OperationType.remove_backlink,
+    OperationType.remove_backlink: OperationType.add_backlink,
+}
+
+
+def reverse_apply_patch(raw_content: str, operation_type: str, payload: dict) -> tuple[str, bool]:
+    """Reverse-apply a patch operation to restore the note to its pre-patch state.
+
+    Returns (new_content, changed). Uses deterministic inverse operations.
+    """
+    op = OperationType(operation_type)
+
+    if op in _INVERSE_OPS:
+        inverse_op = _INVERSE_OPS[op]
+        return apply_patch(raw_content, inverse_op.value, payload)
+
+    if op == OperationType.update_frontmatter_key:
+        previous_value = payload.get("previous_value")
+        if previous_value is None:
+            # No previous value recorded; remove the key entirely
+            return _remove_frontmatter_key(raw_content, payload["key"])
+        return _update_frontmatter_key(raw_content, payload["key"], previous_value)
+
+    if op == OperationType.append_body:
+        return _remove_body_content(raw_content, payload["content"], payload.get("heading"))
+
+    if op == OperationType.prepend_body:
+        return _remove_body_content(raw_content, payload["content"], payload.get("heading"))
+
+    raise ValueError(f"Cannot reverse operation type: {operation_type}")
+
+
+def _remove_frontmatter_key(content: str, key: str) -> tuple[str, bool]:
+    post = frontmatter.loads(content)
+    if key not in post.metadata:
+        return content, False
+    del post.metadata[key]
+    return frontmatter.dumps(post), True
+
+
+def _remove_body_content(content: str, inserted_content: str, heading: str | None = None) -> tuple[str, bool]:
+    """Remove previously inserted content from the note body."""
+    if inserted_content not in content:
+        return content, False
+    # Remove the inserted content and any surrounding blank line it created
+    new_content = content.replace(inserted_content + "\n", "", 1)
+    if new_content == content:
+        new_content = content.replace(inserted_content, "", 1)
+    return new_content, new_content != content
 
 
 def _add_tag(content: str, tag: str) -> tuple[str, bool]:

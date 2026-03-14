@@ -19,6 +19,7 @@ celery = Celery(
         "app.tasks.triage_scan",
         "app.tasks.embedding_job",
         "app.tasks.cluster_job",
+        "app.tasks.batch_patch_job",
     ],
 )
 

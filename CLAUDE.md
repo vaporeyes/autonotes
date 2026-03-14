@@ -26,9 +26,10 @@ app/
     __init__.py         # Shared error handling (AppError, factory functions)
     health.py           # GET /health
     notes.py            # GET /notes/{path}, GET /notes/folder/{path}
-    patches.py          # POST /patches, approve, reject
+    patches.py          # POST /patches, approve, reject, undo
+    batch_patches.py    # POST /batch-patches (folder/query batch operations)
     commands.py         # GET/POST /commands
-    jobs.py             # POST /jobs, GET /jobs, cancel
+    jobs.py             # POST /jobs, GET /jobs, cancel, undo
     ai.py               # POST /ai/analyze, POST /ai/chat
     logs.py             # GET /logs
     conventions.py      # CRUD /conventions, GET /conventions/resolve
@@ -36,7 +37,7 @@ app/
     similarity.py       # POST /similarity/search, GET /similarity/duplicates, GET /embeddings/status
     clusters.py         # GET /clusters/latest, GET /clusters/{id}, POST /clusters/{id}/moc
   models/
-    job.py              # Job (vault_scan, cleanup, ai_analysis, triage_scan, embed_notes, cluster_notes)
+    job.py              # Job (vault_scan, cleanup, ai_analysis, triage_scan, embed_notes, cluster_notes, batch_patch)
     patch_operation.py  # PatchOperation (add_tag, add_backlink, create_moc, etc.)
     operation_log.py    # OperationLog (immutable audit)
     llm_interaction.py  # LLMInteraction (privacy tracking)
@@ -49,7 +50,9 @@ app/
   services/
     obsidian_client.py  # httpx async client for Obsidian REST API
     note_parser.py      # Frontmatter + markdown-it-py parsing
-    patch_engine.py     # Idempotent patch application logic
+    patch_engine.py     # Idempotent patch application + reverse-apply for undo
+    batch_patch_service.py # Batch note selection + batch apply logic
+    undo_service.py     # Single and batch undo with hash verification
     log_service.py      # Operation log writes + retention purge
     command_service.py  # Obsidian command forwarding
     job_service.py      # Job CRUD + dedup logic
@@ -70,6 +73,7 @@ app/
     triage_scan.py      # Celery: auto-triage scan with progress
     embedding_job.py    # Celery: vault-wide note embedding
     cluster_job.py      # Celery: HDBSCAN clustering + duplicate detection
+    batch_patch_job.py  # Celery: async batch patch operations
   db/
     session.py          # SQLAlchemy async engine + session factory
     migrations/         # Alembic migrations
@@ -113,4 +117,3 @@ uv run pytest
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
-

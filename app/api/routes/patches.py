@@ -4,6 +4,7 @@
 import uuid
 from datetime import datetime, timezone
 
+import frontmatter as fm
 import httpx
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -21,6 +22,7 @@ from app.schemas.patch import (
     PatchResult,
     RejectResponse,
 )
+from app.schemas.undo import UndoResponse
 from app.services import log_service
 from app.services.note_parser import compute_content_hash
 from app.services.obsidian_client import obsidian_client
@@ -52,6 +54,12 @@ async def create_patches(req: PatchRequest, session: AsyncSession = Depends(get_
 
     for op in req.operations:
         risk = classify_risk(op.type)
+
+        # Capture previous value for undo support on frontmatter key updates
+        if op.type == "update_frontmatter_key" and "previous_value" not in op.payload:
+            post = fm.loads(current_content)
+            op.payload["previous_value"] = post.metadata.get(op.payload["key"])
+
         idem_key = compute_idempotency_key(req.target_path, op.type, op.payload)
 
         # Check for existing idempotent operation
@@ -192,3 +200,35 @@ async def reject_patch(patch_id: uuid.UUID, session: AsyncSession = Depends(get_
     await session.commit()
 
     return RejectResponse(status="skipped")
+
+
+@router.post("/patches/{patch_id}/undo", response_model=UndoResponse)
+async def undo_patch(patch_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
+    from app.services.undo_service import (
+        NoteDivergedError,
+        NoteDeletedError,
+        PatchNotFoundError,
+        PatchNotUndoableError,
+        undo_patch as do_undo,
+    )
+    try:
+        result = await do_undo(session, patch_id)
+    except PatchNotFoundError:
+        raise not_found(f"Patch not found: {patch_id}")
+    except PatchNotUndoableError as exc:
+        raise conflict(str(exc))
+    except NoteDeletedError as exc:
+        raise conflict(
+            "Note no longer exists in vault",
+            target_path=exc.target_path,
+        )
+    except NoteDivergedError as exc:
+        raise conflict(
+            "Note content changed since patch was applied",
+            target_path=exc.target_path,
+            expected_hash=exc.expected_hash,
+            current_hash=exc.current_hash,
+        )
+
+    await session.commit()
+    return result
