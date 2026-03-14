@@ -1,5 +1,5 @@
 # ABOUTME: SQLAlchemy model for the Job entity representing a trackable unit of work.
-# ABOUTME: Supports vault_scan, vault_cleanup, ai_analysis, ai_chat, manual_patch, batch_patch, vault_health_scan, triage_scan.
+# ABOUTME: Supports vault_scan, vault_cleanup, ai_analysis, ai_chat, manual_patch, batch_patch, vault_health_scan, triage_scan, embed_notes, cluster_notes.
 
 import enum
 import uuid
@@ -21,6 +21,8 @@ class JobType(str, enum.Enum):
     batch_patch = "batch_patch"
     vault_health_scan = "vault_health_scan"
     triage_scan = "triage_scan"
+    embed_notes = "embed_notes"
+    cluster_notes = "cluster_notes"
 
 
 class JobStatus(str, enum.Enum):

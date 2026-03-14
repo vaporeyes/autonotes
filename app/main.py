@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.routes import AppError, app_error_handler, health
-from app.api.routes import ai, commands, conventions, jobs, logs, notes, patches, triage, vault_health
+from app.api.routes import ai, clusters, commands, conventions, jobs, logs, notes, patches, similarity, triage, vault_health
 
 
 @asynccontextmanager
@@ -31,6 +31,9 @@ def create_app() -> FastAPI:
             {"name": "Logs", "description": "Query operation audit logs"},
             {"name": "Conventions", "description": "Folder convention CRUD and inheritance resolution"},
             {"name": "Triage", "description": "Auto-triage scan results and history"},
+            {"name": "Similarity", "description": "Note similarity search and duplicate detection"},
+            {"name": "Clusters", "description": "Topic clusters and MOC generation"},
+            {"name": "Embeddings", "description": "Embedding index status and management"},
             {"name": "Vault Health", "description": "Vault health analytics, trends, and dashboard"},
             {"name": "Health", "description": "System health and connectivity checks"},
         ],
@@ -45,6 +48,8 @@ def create_app() -> FastAPI:
     app.include_router(ai.router, prefix="/api/v1")
     app.include_router(conventions.router, prefix="/api/v1")
     app.include_router(triage.router, prefix="/api/v1")
+    app.include_router(similarity.router, prefix="/api/v1")
+    app.include_router(clusters.router, prefix="/api/v1")
     app.include_router(vault_health.router, prefix="/api/v1")
     app.include_router(logs.router, prefix="/api/v1")
 

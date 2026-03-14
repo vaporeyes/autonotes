@@ -34,8 +34,8 @@ class ObsidianClient:
         return resp.text
 
     async def list_folder(self, path: str, recursive: bool = False) -> list[str]:
-        folder = path.rstrip("/")
-        url = f"/vault/{folder}/"
+        folder = path.strip("/")
+        url = f"/vault/{folder}/" if folder else "/vault/"
         resp = await self._client.get(url)
         resp.raise_for_status()
         data = resp.json()

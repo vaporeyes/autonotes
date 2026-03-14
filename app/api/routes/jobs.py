@@ -16,6 +16,8 @@ from app.services import job_service
 from app.tasks.ai_analysis import ai_analysis
 from app.tasks.vault_cleanup import vault_cleanup
 from app.tasks.vault_health_scan import vault_health_scan
+from app.tasks.cluster_job import cluster_notes
+from app.tasks.embedding_job import embed_notes
 from app.tasks.triage_scan import triage_scan
 from app.tasks.vault_scan import vault_scan
 
@@ -27,6 +29,8 @@ _TASK_DISPATCH = {
     JobType.ai_analysis: ai_analysis,
     JobType.vault_health_scan: vault_health_scan,
     JobType.triage_scan: triage_scan,
+    JobType.embed_notes: embed_notes,
+    JobType.cluster_notes: cluster_notes,
 }
 
 

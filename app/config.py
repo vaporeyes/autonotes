@@ -36,5 +36,18 @@ class Settings(BaseSettings):
     triage_scan_cron: str = "0 5 * * *"  # Daily at 5am UTC
     triage_scan_scope: str = "/"
 
+    # Note similarity engine
+    openai_api_key: str = ""
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
+    embedding_exclude_patterns: str = "90 Atlas/Templates/,Attachments/,images/"
+    embedding_batch_size: int = 50
+    similarity_default_threshold: float = 0.5
+    duplicate_default_threshold: float = 0.9
+    cluster_min_size: int = 3
+    moc_target_folder: str = "30 Maps/"
+    embedding_scan_cron: str = "0 4 * * *"  # Daily at 4am UTC
+    cluster_scan_cron: str = "0 4 1 * *"  # Monthly on the 1st at 4am UTC
+
 
 settings = Settings()

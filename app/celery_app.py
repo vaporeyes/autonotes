@@ -17,6 +17,8 @@ celery = Celery(
         "app.tasks.log_purge",
         "app.tasks.vault_health_scan",
         "app.tasks.triage_scan",
+        "app.tasks.embedding_job",
+        "app.tasks.cluster_job",
     ],
 )
 
@@ -61,5 +63,15 @@ celery.conf.beat_schedule = {
         "task": "triage_scan",
         "schedule": _parse_cron(settings.triage_scan_cron),
         "args": [None, settings.triage_scan_scope, None],
+    },
+    "scheduled-embedding-scan": {
+        "task": "embed_notes",
+        "schedule": _parse_cron(settings.embedding_scan_cron),
+        "args": [None, "/", None],
+    },
+    "scheduled-clustering": {
+        "task": "cluster_notes",
+        "schedule": _parse_cron(settings.cluster_scan_cron),
+        "args": [None, "/", None],
     },
 }

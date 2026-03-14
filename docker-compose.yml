@@ -45,7 +45,7 @@ services:
       retries: 5
 
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-autonotes}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-autonotes}

@@ -20,6 +20,7 @@ class OperationType(str, enum.Enum):
     update_frontmatter_key = "update_frontmatter_key"
     append_body = "append_body"
     prepend_body = "prepend_body"
+    create_moc = "create_moc"
 
 
 class RiskLevel(str, enum.Enum):
