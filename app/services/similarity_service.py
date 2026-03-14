@@ -82,21 +82,38 @@ async def search_similar(
         exclude_path = None
 
     # pgvector cosine distance: <=> operator returns distance (0=identical), so similarity = 1 - distance
+    # Use CAST() instead of :: shorthand to avoid SQLAlchemy bind-parameter syntax conflict
+    # Split into two queries to avoid asyncpg ambiguous parameter type on the IS NULL check
     vector_str = "[" + ",".join(str(v) for v in query_vector) + "]"
-    sql = text("""
-        SELECT note_path, 1 - (embedding <=> :query_vec::vector) as similarity
-        FROM note_embeddings
-        WHERE (:exclude_path IS NULL OR note_path != :exclude_path)
-          AND 1 - (embedding <=> :query_vec::vector) >= :threshold
-        ORDER BY embedding <=> :query_vec::vector
-        LIMIT :limit
-    """)
-    result = await session.execute(sql, {
-        "query_vec": vector_str,
-        "exclude_path": exclude_path,
-        "threshold": threshold,
-        "limit": limit,
-    })
+    if exclude_path:
+        sql = text("""
+            SELECT note_path, 1 - (embedding <=> CAST(:query_vec AS vector)) as similarity
+            FROM note_embeddings
+            WHERE note_path != :exclude_path
+              AND 1 - (embedding <=> CAST(:query_vec AS vector)) >= :threshold
+            ORDER BY embedding <=> CAST(:query_vec AS vector)
+            LIMIT :limit
+        """)
+        params = {
+            "query_vec": vector_str,
+            "exclude_path": exclude_path,
+            "threshold": threshold,
+            "limit": limit,
+        }
+    else:
+        sql = text("""
+            SELECT note_path, 1 - (embedding <=> CAST(:query_vec AS vector)) as similarity
+            FROM note_embeddings
+            WHERE 1 - (embedding <=> CAST(:query_vec AS vector)) >= :threshold
+            ORDER BY embedding <=> CAST(:query_vec AS vector)
+            LIMIT :limit
+        """)
+        params = {
+            "query_vec": vector_str,
+            "threshold": threshold,
+            "limit": limit,
+        }
+    result = await session.execute(sql, params)
     rows = result.fetchall()
 
     # Enrich results with title and tags from vault
