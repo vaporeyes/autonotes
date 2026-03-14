@@ -13,6 +13,7 @@ AI-powered orchestrator for Obsidian vault management. Reads, analyzes, and surg
 - **Auto-Triage** - Define folder conventions (required frontmatter, expected tags, backlink targets) and periodically scan notes for compliance. Low-risk fixes (missing defaults, tag normalization) auto-apply; high-risk suggestions (backlinks) queue for approval. Convention inheritance lets sub-folders override parent rules
 - **Note Similarity Engine** - Embed vault notes via OpenAI text-embedding-3-small, search for similar notes by path or free-text query, detect near-duplicate pairs, cluster related notes with HDBSCAN, and generate Map of Content (MOC) drafts linking clustered notes. Incremental re-embedding via content hash staleness detection. MOC generation goes through the patch approval workflow
 - **Batch Patch & Undo** - Apply the same operation across multiple notes by folder path or similarity query. Dry-run preview shows affected notes before committing. Undo any applied patch via reverse-apply with content hash verification, or undo an entire batch job at once. Large batches run as background jobs with progress tracking
+- **Web Dashboard** - Lightweight SPA served by the API at `/dashboard/`. Six views: system health dashboard with sparklines, notes browser with folder tree, patches & approvals management, jobs monitor with progress bars, AI chat with conversation history, and filterable audit logs. Vanilla HTML/CSS/JS, no frameworks or build step
 - **Audit Trail** - Every mutation is logged with before/after content hashes. Logs auto-purge after configurable retention period
 
 ## Architecture
@@ -54,7 +55,7 @@ docker compose exec api uv run alembic upgrade head
 curl http://localhost:8000/api/v1/health
 ```
 
-Open `http://localhost:8000/docs` for the Swagger UI.
+Open `http://localhost:8000/docs` for the Swagger UI, or `http://localhost:8000/dashboard/` for the web dashboard.
 
 See [quickstart.md](specs/001-ai-orchestrator/quickstart.md) for detailed usage examples.
 
@@ -62,8 +63,8 @@ See [quickstart.md](specs/001-ai-orchestrator/quickstart.md) for detailed usage 
 
 | Group | Endpoints | Description |
 |-------|-----------|-------------|
-| Notes | `GET /notes/{path}`, `GET /notes/folder/{path}` | Read and analyze notes |
-| Patches | `POST /patches`, `POST /patches/{id}/approve`, `POST /patches/{id}/reject`, `POST /patches/{id}/undo` | Surgical edits with risk-tiered approval and undo |
+| Notes | `GET /notes/{path}`, `GET /notes/folder/{path}`, `GET /vault-structure` | Read, analyze, and browse vault structure |
+| Patches | `GET /patches`, `POST /patches`, `POST /patches/{id}/approve`, `POST /patches/{id}/reject`, `POST /patches/{id}/undo` | Surgical edits with risk-tiered approval and undo |
 | Batch Patches | `POST /batch-patches` | Batch operations by folder or similarity query |
 | Commands | `GET /commands`, `POST /commands/{id}` | Obsidian command execution |
 | Jobs | `POST /jobs`, `GET /jobs/{id}`, `GET /jobs`, `POST /jobs/{id}/cancel`, `POST /jobs/{id}/undo` | Background task management and batch undo |

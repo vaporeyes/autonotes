@@ -24,11 +24,12 @@ async def get_vault_structure():
 
         note_count = sum(1 for f in files if f.endswith(".md"))
         children = []
-        prefix = f"{path.strip('/')}/" if path.strip("/") else ""
         for f in files:
-            full = prefix + f
+            # list_folder already returns full paths (e.g. "attachments/audio/")
             if f.endswith("/"):
-                child = await build_tree(full.rstrip("/"), f.rstrip("/"))
+                folder_path = f.rstrip("/")
+                folder_name = folder_path.rsplit("/", 1)[-1]
+                child = await build_tree(folder_path, folder_name)
                 children.append(child)
 
         children.sort(key=lambda c: c.name)

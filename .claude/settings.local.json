@@ -25,7 +25,8 @@
       "Bash(git -C /Users/jsh/dev/projects/autonotes rev-parse --git-dir 2>/dev/null && echo \"IS_GIT=true\")",
       "Bash(uv add:*)",
       "Bash(.specify/scripts/bash/create-new-feature.sh \"Add batch patch operations \\(apply the same operation across multiple notes by folder or query\\) and an undo/rollback system that uses existing operation logs to revert patches to their previous content hash state.\" --json --short-name \"batch-patch-undo\" 2>&1)",
-      "Bash(git -C /Users/jsh/dev/projects/autonotes rev-parse --git-dir 2>/dev/null && echo \"IS_GIT=true\" || echo \"IS_GIT=false\")"
+      "Bash(git -C /Users/jsh/dev/projects/autonotes rev-parse --git-dir 2>/dev/null && echo \"IS_GIT=true\" || echo \"IS_GIT=false\")",
+      "Bash(.specify/scripts/bash/create-new-feature.sh \"Build a lightweight web dashboard for the Autonotes API \\(localhost:8000/api/v1\\). The frontend is a single-page application served by the existing FastAPI backend \\(static files, no separate dev server in production\\). Use vanilla HTML, CSS, and JavaScript -- no frameworks, no build step.\" --json --short-name \"web-dashboard\")"
     ]
   }
 }
